@@ -46,7 +46,6 @@ func NewVersionedClient[T any, O any, R any](
 	newClientFn func(string, ...O) (*T, error),
 	withRequestEditorFn func(R) O,
 ) (*VersionedClient[T, O, R], error) {
-	// Instead of converting the function directly, let's first create the function with the correct type.
 	var typedAuthFn R
 
 	// Basic authentication function.
@@ -55,9 +54,17 @@ func NewVersionedClient[T any, O any, R any](
 	// Create a function with the correct type.
 	switch any(typedAuthFn).(type) {
 	case metabase_v0_50.RequestEditorFn:
-		typedAuthFn = any(metabase_v0_50.RequestEditorFn(baseAuthFn)).(R)
+		converted, ok := any(metabase_v0_50.RequestEditorFn(baseAuthFn)).(R)
+		if !ok {
+			return nil, fmt.Errorf("failed to convert to v0.50 RequestEditorFn")
+		}
+		typedAuthFn = converted
 	case metabase_v0_51.RequestEditorFn:
-		typedAuthFn = any(metabase_v0_51.RequestEditorFn(baseAuthFn)).(R)
+		converted, ok := any(metabase_v0_51.RequestEditorFn(baseAuthFn)).(R)
+		if !ok {
+			return nil, fmt.Errorf("failed to convert to v0.51 RequestEditorFn")
+		}
+		typedAuthFn = converted
 	default:
 		return nil, fmt.Errorf("unsupported RequestEditorFn type")
 	}
