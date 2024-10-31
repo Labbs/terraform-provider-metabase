@@ -5,51 +5,66 @@ package provider
 
 import (
 	"context"
-	"net/http"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/labbs/terraform-provider-metabase/metabase"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
+// Ensure MetabaseProvider satisfies various provider interfaces.
+var _ provider.Provider = &MetabaseProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
-	// version is set to the provider version on release, "dev" when the
-	// provider is built and ran locally, and "test" when running acceptance
-	// testing.
+// MetabaseProvider defines the provider implementation.
+type MetabaseProvider struct {
 	version string
+	client  *metabase.Client
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
+// MetabaseProviderModel describes the provider data model.
+type MetabaseProviderModel struct {
 	Endpoint types.String `tfsdk:"endpoint"`
+	Username types.String `tfsdk:"username"`
+	Password types.String `tfsdk:"password"`
+	ApiKey   types.String `tfsdk:"api_key"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *MetabaseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "metabase"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *MetabaseProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+				MarkdownDescription: "Endpoint of the Metabase instance",
+				Required:            true,
+			},
+			"username": schema.StringAttribute{
+				MarkdownDescription: "Username for the Metabase instance",
 				Optional:            true,
+			},
+			"password": schema.StringAttribute{
+				MarkdownDescription: "Password for the Metabase instance",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"api_key": schema.StringAttribute{
+				MarkdownDescription: "API key for the Metabase instance",
+				Optional:            true,
+				Sensitive:           true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *MetabaseProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data MetabaseProviderModel
+	var clientConfig metabase.ClientConfig = metabase.ClientConfig{}
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -57,36 +72,60 @@ func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.Config
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	if !data.Endpoint.IsNull() {
+		clientConfig.BaseURL = data.Endpoint.ValueString()
+	} else {
+		resp.Diagnostics.AddError("endpoint is required", "")
+		return
+	}
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
+	// Configuration values are now available.
+	if !data.Username.IsNull() && !data.Password.IsNull() && !data.ApiKey.IsNull() {
+		resp.Diagnostics.AddError("only one of username, password, or api_key can be set", "")
+		return
+	} else if data.Username.IsNull() && data.Password.IsNull() && data.ApiKey.IsNull() {
+		resp.Diagnostics.AddError("one of username, password, or api_key must be set", "")
+		return
+	} else if !data.Username.IsNull() && !data.Password.IsNull() {
+		clientConfig.Username = data.Username.ValueString()
+		clientConfig.Password = data.Password.ValueString()
+	} else if !data.ApiKey.IsNull() {
+		clientConfig.APIKey = data.ApiKey.ValueString()
+	} else {
+		resp.Diagnostics.AddError("unexpected error", "An unexpected error occurred")
+		return
+	}
+
+	// Le client est automatiquement créé avec la bonne version
+	client, err := metabase.NewAutoVersionedClient(clientConfig)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Client creation failed",
+			fmt.Sprintf("Impossible to connect to Metabase: %v", err),
+		)
+		return
+	}
+
+	p.client = client
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *MetabaseProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		NewUserResource,
+		NewPermissionsGroupResource,
+		NewPermissionsMembershipResource,
 	}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
-}
-
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
+func (p *MetabaseProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &MetabaseProvider{
 			version: version,
 		}
 	}
