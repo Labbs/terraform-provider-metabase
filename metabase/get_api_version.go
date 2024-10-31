@@ -13,18 +13,18 @@ type MetabaseInfo struct {
 	} `json:"info"`
 }
 
-// getMetabaseVersion retrieves the Metabase API version
+// getMetabaseVersion retrieves the Metabase API version.
 func getMetabaseVersion(endpoint string) (string, error) {
 	// Get the Metabase API version
 	var metabaseInfo MetabaseInfo
 
-	// Get the Metabase API version
+	// Get the Metabase API version.
 	resp, err := http.Get(endpoint + "/docs/openapi.json")
 	if err != nil {
 		return "", fmt.Errorf("failed to get Metabase API version: %w", err)
 	}
 
-	// Decode the response
+	// Decode the response.
 	if err := json.NewDecoder(resp.Body).Decode(&metabaseInfo); err != nil {
 		return "", fmt.Errorf("failed to decode Metabase API version: %w", err)
 	}

@@ -16,7 +16,7 @@ type User struct {
 	LastName  string `json:"last_name" tfsdk:"last_name"`
 }
 
-// CreateUser creates a user based on the API version
+// CreateUser creates a user based on the API version.
 func CreateUser(ctx context.Context, client *Client, user User) (User, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -69,7 +69,7 @@ func CreateUser(ctx context.Context, client *Client, user User) (User, error) {
 	}
 }
 
-// GetUser retrieves a user based on the API version
+// GetUser retrieves a user based on the API version.
 func GetUser(ctx context.Context, client *Client, id int) (User, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -113,7 +113,7 @@ func GetUser(ctx context.Context, client *Client, id int) (User, error) {
 	}
 }
 
-// UpdateUser updates a user based on the API version
+// UpdateUser updates a user based on the API version.
 func UpdateUser(ctx context.Context, client *Client, user User) (User, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -165,7 +165,7 @@ func UpdateUser(ctx context.Context, client *Client, user User) (User, error) {
 	}
 }
 
-// DeleteUser deletes a user based on the API version
+// DeleteUser deletes a user based on the API version.
 func DeleteUser(ctx context.Context, client *Client, id int) error {
 	switch client.GetVersion() {
 	case "v0.50":

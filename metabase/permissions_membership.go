@@ -32,7 +32,7 @@ type PermissionsMembershipResponse struct {
 	IsGroupManager bool `json:"is_group_manager" tfsdk:"is_group_manager"`
 }
 
-// CreatePermissionsMembership creates a permissions membership based on the API version
+// CreatePermissionsMembership creates a permissions membership based on the API version.
 func CreatePermissionsMembership(ctx context.Context, client *Client, permissionsMembership PermissionsMembership) (PermissionsMembership, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -100,7 +100,7 @@ func CreatePermissionsMembership(ctx context.Context, client *Client, permission
 	}
 }
 
-// UpdatePermissionsMembership updates a permissions membership based on the API version
+// UpdatePermissionsMembership updates a permissions membership based on the API version.
 func UpdatePermissionsMembership(ctx context.Context, client *Client, permissionsMembership PermissionsMembership) (PermissionsMembership, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -156,7 +156,7 @@ func UpdatePermissionsMembership(ctx context.Context, client *Client, permission
 	}
 }
 
-// DeletePermissionsMembership deletes a permissions membership based on the API version
+// DeletePermissionsMembership deletes a permissions membership based on the API version.
 func DeletePermissionsMembership(ctx context.Context, client *Client, permissionsMembershipID int) error {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -178,7 +178,7 @@ func DeletePermissionsMembership(ctx context.Context, client *Client, permission
 	}
 }
 
-// GetPermissionsMembership retrieves a permissions membership based on the API version
+// GetPermissionsMembership retrieves a permissions membership based on the API version.
 func GetPermissionsMembership(ctx context.Context, client *Client, membershipID, groupID, userID int) (PermissionsMembership, error) {
 	switch client.GetVersion() {
 	case "v0.50":

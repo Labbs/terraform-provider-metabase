@@ -11,7 +11,7 @@ import (
 	metabase_v0_51 "github.com/labbs/terraform-provider-metabase/metabase/v0_51"
 )
 
-// ClientConfig contient la configuration commune pour toutes les versions
+// ClientConfig contains the common configuration for all versions.
 type ClientConfig struct {
 	BaseURL  string
 	Username string
@@ -19,19 +19,19 @@ type ClientConfig struct {
 	APIKey   string
 }
 
-// MetabaseVersionInfo représente la réponse de l'API pour la version
+// MetabaseVersionInfo represents the API response for the version.
 type MetabaseVersionInfo struct {
 	Version string `json:"version"`
 }
 
-// VersionedClient est un client générique qui fonctionne avec toutes les versions
+// VersionedClient is a generic client that works with all versions.
 type VersionedClient[T any, O any, R any] struct {
 	Client  T
 	Version string
 	Premium bool
 }
 
-// Client concret qui implémente MetabaseAPI
+// Concrete client that implements MetabaseAPI.
 type Client struct {
 	V0_50   *VersionedClient[metabase_v0_50.Client, metabase_v0_50.ClientOption, metabase_v0_50.RequestEditorFn]
 	V0_51   *VersionedClient[metabase_v0_51.Client, metabase_v0_51.ClientOption, metabase_v0_51.RequestEditorFn]
@@ -39,20 +39,20 @@ type Client struct {
 	Premium bool
 }
 
-// NewVersionedClient crée un nouveau client typé pour une version spécifique
+// NewVersionedClient creates a new typed client for a specific version.
 func NewVersionedClient[T any, O any, R any](
 	config ClientConfig,
 	version string,
 	newClientFn func(string, ...O) (*T, error),
 	withRequestEditorFn func(R) O,
 ) (*VersionedClient[T, O, R], error) {
-	// Au lieu de convertir la fonction directement, créons d'abord la fonction avec le bon type
+	// Instead of converting the function directly, let's first create the function with the correct type.
 	var typedAuthFn R
 
-	// Fonction d'authentification de base
+	// Basic authentication function.
 	baseAuthFn := getAuthFunction(config)
 
-	// Créer une fonction avec le type correct
+	// Create a function with the correct type.
 	switch any(typedAuthFn).(type) {
 	case metabase_v0_50.RequestEditorFn:
 		typedAuthFn = any(metabase_v0_50.RequestEditorFn(baseAuthFn)).(R)
@@ -62,7 +62,7 @@ func NewVersionedClient[T any, O any, R any](
 		return nil, fmt.Errorf("unsupported RequestEditorFn type")
 	}
 
-	// Créer le client avec la fonction typée
+	// Create the client with the typed function.
 	client, err := newClientFn(
 		config.BaseURL,
 		withRequestEditorFn(typedAuthFn),
@@ -78,7 +78,7 @@ func NewVersionedClient[T any, O any, R any](
 	}, nil
 }
 
-// getAuthFunction crée la fonction d'authentification appropriée
+// getAuthFunction creates the appropriate authentication function.
 func getAuthFunction(config ClientConfig) func(context.Context, *http.Request) error {
 	if config.APIKey != "" {
 		return func(ctx context.Context, req *http.Request) error {
@@ -131,7 +131,7 @@ func getAuthFunction(config ClientConfig) func(context.Context, *http.Request) e
 	}
 }
 
-// NewAutoVersionedClient crée automatiquement le bon client basé sur la version de l'API
+// NewAutoVersionedClient automatically creates the correct client based on the API version.
 func NewAutoVersionedClient(config ClientConfig) (*Client, error) {
 	version, err := getMetabaseVersion(config.BaseURL)
 	if err != nil {
@@ -172,7 +172,7 @@ func NewAutoVersionedClient(config ClientConfig) (*Client, error) {
 	return client, nil
 }
 
-// GetClient retourne le client sous-jacent approprié
+// GetClient returns the appropriate underlying client.
 func (c *Client) GetClient() interface{} {
 	switch c.Version {
 	case "v0.50":
@@ -184,7 +184,7 @@ func (c *Client) GetClient() interface{} {
 	}
 }
 
-// GetVersion retourne la version du client
+// GetVersion returns the client version.
 func (c *Client) GetVersion() string {
 	return c.Version
 }

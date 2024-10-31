@@ -14,7 +14,7 @@ type PermissionsGroup struct {
 	Name string `json:"name" tfsdk:"name"`
 }
 
-// CreateGroup creates a permissions group based on the API version
+// CreateGroup creates a permissions group based on the API version.
 func CreatePermissionsGroup(ctx context.Context, client *Client, permissionsGroup PermissionsGroup) (PermissionsGroup, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -62,7 +62,7 @@ func CreatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 	}
 }
 
-// GetGroup returns a permissions group based on the API version
+// GetGroup returns a permissions group based on the API version.
 func GetPermissionsGroup(ctx context.Context, client *Client, permissionsGroupID int) (PermissionsGroup, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -106,7 +106,7 @@ func GetPermissionsGroup(ctx context.Context, client *Client, permissionsGroupID
 	}
 }
 
-// UpdateGroup updates a group based on the API version
+// UpdateGroup updates a group based on the API version.
 func UpdatePermissionsGroup(ctx context.Context, client *Client, permissionsGroup PermissionsGroup) (PermissionsGroup, error) {
 	switch client.GetVersion() {
 	case "v0.50":
@@ -154,7 +154,7 @@ func UpdatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 	}
 }
 
-// DeleteGroup deletes a group based on the API version
+// DeleteGroup deletes a group based on the API version.
 func DeletePermissionsGroup(ctx context.Context, client *Client, permissionsGroupID int) error {
 	switch client.GetVersion() {
 	case "v0.50":
