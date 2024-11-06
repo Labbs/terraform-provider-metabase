@@ -3,7 +3,7 @@ module github.com/labbs/terraform-provider-metabase
 go 1.22.7
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.12.0
+	github.com/hashicorp/terraform-plugin-framework v1.13.0
 	github.com/oapi-codegen/runtime v1.1.1
 )
 
