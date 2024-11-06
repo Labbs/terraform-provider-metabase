@@ -1,11 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package provider
 
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -45,16 +43,16 @@ func (p *MetabaseProvider) Schema(ctx context.Context, req provider.SchemaReques
 				Required:            true,
 			},
 			"username": schema.StringAttribute{
-				MarkdownDescription: "Username for the Metabase instance",
+				MarkdownDescription: "Username for the Metabase instance. Can also be set via the METABASE_USERNAME environment variable",
 				Optional:            true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "Password for the Metabase instance",
+				MarkdownDescription: "Password for the Metabase instance. Can also be set via the METABASE_PASSWORD environment variable",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"api_key": schema.StringAttribute{
-				MarkdownDescription: "API key for the Metabase instance",
+				MarkdownDescription: "API key for the Metabase instance. Can also be set via the METABASE_API_KEY environment variable",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -72,6 +70,23 @@ func (p *MetabaseProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
+	// Check if the configuration values are set in the environment variables
+	if data.Username.IsNull() {
+		if username := os.Getenv("METABASE_USERNAME"); username != "" {
+			data.Username = types.StringValue(username)
+		}
+	} else if data.Password.IsNull() {
+		if password := os.Getenv("METABASE_PASSWORD"); password != "" {
+			data.Password = types.StringValue(password)
+		}
+	}
+	if data.ApiKey.IsNull() {
+		if apiKey := os.Getenv("METABASE_API_KEY"); apiKey != "" {
+			data.ApiKey = types.StringValue(apiKey)
+		}
+	}
+
+	// Check if the configuration values are set
 	if !data.Endpoint.IsNull() {
 		clientConfig.BaseURL = data.Endpoint.ValueString()
 	} else {
@@ -96,7 +111,7 @@ func (p *MetabaseProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Le client est automatiquement créé avec la bonne version
+	// The client is automatically created with the correct version
 	client, err := metabase.NewAutoVersionedClient(clientConfig)
 	if err != nil {
 		resp.Diagnostics.AddError(
