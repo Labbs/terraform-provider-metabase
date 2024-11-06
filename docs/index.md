@@ -30,6 +30,6 @@ provider "metabase" {
 
 ### Optional
 
-- `api_key` (String, Sensitive) API key for the Metabase instance
-- `password` (String, Sensitive) Password for the Metabase instance
-- `username` (String) Username for the Metabase instance
+- `api_key` (String, Sensitive) API key for the Metabase instance. Can also be set via the METABASE_API_KEY environment variable
+- `password` (String, Sensitive) Password for the Metabase instance. Can also be set via the METABASE_PASSWORD environment variable
+- `username` (String) Username for the Metabase instance. Can also be set via the METABASE_USERNAME environment variable
