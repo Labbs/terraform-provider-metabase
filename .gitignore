@@ -35,3 +35,6 @@ website/vendor
 *.winfile eol=crlf
 
 .dev/
+
+# Ignore the provider binary. Used for local testing.
+terraform-provider-metabase 
