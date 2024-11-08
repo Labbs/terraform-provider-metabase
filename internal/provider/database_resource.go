@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
@@ -100,14 +101,7 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 }
 
 func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan struct {
-		ID                types.Int64  `tfsdk:"id"`
-		Name              types.String `tfsdk:"name"`
-		Engine            types.String `tfsdk:"engine"`
-		AutoRunQueries    types.Bool   `tfsdk:"auto_run_queries"`
-		IsOnDemand        types.Bool   `tfsdk:"is_on_demand"`
-		PostgresqlDetails types.Object `tfsdk:"postgresql_details"`
-	}
+	var plan metabase.Database
 
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -115,12 +109,7 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	database := metabase.Database{
-		Name:           plan.Name.ValueString(),
-		Engine:         plan.Engine.ValueString(),
-		AutoRunQueries: plan.AutoRunQueries.ValueBool(),
-		IsOnDemand:     plan.IsOnDemand.ValueBool(),
-	}
+	db := plan
 
 	switch plan.Engine.ValueString() {
 	case "postgres":
@@ -131,26 +120,32 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 			return
 		}
 
-		database.PostgresqlDetails = postgresDetails
-		if database.PostgresqlDetails.Port == 0 {
-			database.PostgresqlDetails.Port = 5432
+		details, objectDiags := types.ObjectValue(metabase.PostgresqlDetailsObjectType.AttrTypes, metabase.TransformPostgresDetails(postgresDetails))
+
+		resp.Diagnostics.Append(objectDiags...)
+		if resp.Diagnostics.HasError() {
+			return
 		}
+
+		db.PostgresqlDetails = details
 	default:
 		resp.Diagnostics.AddError("unsupported database engine", "this database engine is not supported")
 		return
 	}
 
-	createdDatabase, err := metabase.CreateDatabase(ctx, r.client, database)
+	createdDatabase, err := metabase.CreateDatabase(ctx, r.client, db)
 	if err != nil {
 		resp.Diagnostics.AddError("failed to create database", err.Error())
 		return
 	}
 
-	plan.ID = types.Int64Value(int64(createdDatabase.ID))
-	if createdDatabase.AutoRunQueries {
+	plan.ID = createdDatabase.ID
+
+	// Mettre à jour les valeurs non-sensibles si nécessaires
+	if createdDatabase.AutoRunQueries.ValueBool() {
 		plan.AutoRunQueries = types.BoolValue(true)
 	}
-	if createdDatabase.IsOnDemand {
+	if createdDatabase.IsOnDemand.ValueBool() {
 		plan.IsOnDemand = types.BoolValue(true)
 	}
 
@@ -158,12 +153,87 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 }
 
 func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state metabase.Database
+
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	database, err := metabase.GetDatabase(ctx, r.client, state)
+	if err != nil {
+		resp.Diagnostics.AddError("failed to get database", err.Error())
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &database)...)
 }
 
 func (r *DatabaseResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan metabase.Database
+
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	db := plan
+
+	switch plan.Engine.ValueString() {
+	case "postgres":
+		var postgresDetails metabase.PostgresqlDetails
+		diag := plan.PostgresqlDetails.As(ctx, &postgresDetails, basetypes.ObjectAsOptions{})
+		resp.Diagnostics.Append(diag...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		if postgresDetails.Port.ValueInt64() == 0 {
+			postgresDetails.Port = types.Int64Value(5432)
+		}
+
+		if postgresDetails.SSL.IsNull() {
+			postgresDetails.SSL = types.BoolValue(false)
+		}
+
+		details, objectDiags := types.ObjectValue(metabase.PostgresqlDetailsObjectType.AttrTypes, metabase.TransformPostgresDetails(postgresDetails))
+
+		resp.Diagnostics.Append(objectDiags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		db.PostgresqlDetails = details
+	default:
+		resp.Diagnostics.AddError("unsupported database engine", "this database engine is not supported")
+		return
+	}
+
+	updatedDatabase, err := metabase.UpdateDatabase(ctx, r.client, db)
+	if err != nil {
+		resp.Diagnostics.AddError("failed to update database", err.Error())
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &updatedDatabase)...)
 }
 
 func (r *DatabaseResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state metabase.Database
+
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := metabase.DeleteDatabase(ctx, r.client, int(state.ID.ValueInt64()))
+	if err != nil {
+		resp.Diagnostics.AddError("failed to delete database", err.Error())
+		return
+	}
 }
 
 func (r *DatabaseResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -171,6 +241,7 @@ func (r *DatabaseResource) Metadata(ctx context.Context, req resource.MetadataRe
 }
 
 func (r *DatabaseResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
 func (r *DatabaseResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
