@@ -58,19 +58,7 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 
 	switch database.Engine.ValueString() {
 	case "postgres":
-		attrMap := database.PostgresqlDetails.Attributes()
-
-		details = map[string]interface{}{
-			"host":                attrMap["host"].(types.String).ValueString(),
-			"port":                attrMap["port"].(types.Int64).ValueInt64(),
-			"db":                  attrMap["database"].(types.String).ValueString(),
-			"user":                attrMap["user"].(types.String).ValueString(),
-			"password":            attrMap["password"].(types.String).ValueString(),
-			"schema-filter":       attrMap["schema_filter"].(types.String).ValueString(),
-			"ssl":                 attrMap["ssl"].(types.Bool).ValueBool(),
-			"ssl-mode":            attrMap["ssl_mode"].(types.String).ValueString(),
-			"ssl-use-client-mode": attrMap["ssl_use_client_mode"].(types.Bool).ValueBool(),
-		}
+		details = detailsPostgresAttribute(database.PostgresqlDetails.Attributes())
 	default:
 		return Database{}, fmt.Errorf("unsupported database engine")
 	}
@@ -94,9 +82,13 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 			return Database{}, err
 		}
 
-		return Database{
-			ID: types.Int64Value(int64(databaseResponse["id"].(float64))),
-		}, nil
+		if id, ok := databaseResponse["id"].(float64); ok {
+			return Database{
+				ID: types.Int64Value(int64(id)),
+			}, nil
+		} else {
+			return Database{}, fmt.Errorf("failed to convert database id")
+		}
 	case "v0.51":
 		createDatabase, err := client.V0_51.Client.PostDatabase(ctx, metabase_v0_51.PostDatabaseJSONRequestBody{
 			Name:           database.Name.ValueString(),
@@ -115,9 +107,13 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 			return Database{}, err
 		}
 
-		return Database{
-			ID: types.Int64Value(int64(databaseResponse["id"].(float64))),
-		}, nil
+		if id, ok := databaseResponse["id"].(float64); ok {
+			return Database{
+				ID: types.Int64Value(int64(id)),
+			}, nil
+		} else {
+			return Database{}, fmt.Errorf("failed to convert database id")
+		}
 	default:
 		return Database{}, fmt.Errorf("unsupported client version")
 	}
@@ -164,28 +160,25 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 
 	switch state.Engine.ValueString() {
 	case "postgres":
-		var respDetails map[string]interface{} = databaseResponse["details"].(map[string]interface{})
+		var respDetails map[string]interface{}
+		if d, ok := databaseResponse["details"].(map[string]interface{}); ok {
+			respDetails = d
+		} else {
+			return Database{}, fmt.Errorf("failed to convert database details")
+		}
 		var postgresqlDetails PostgresqlDetails
 		diag := state.PostgresqlDetails.As(ctx, &postgresqlDetails, basetypes.ObjectAsOptions{})
 		if diag.HasError() {
 			return Database{}, fmt.Errorf("failed to convert PostgresqlDetails")
 		}
 
-		t := TransformPostgresDetails(PostgresqlDetails{
-			Host:             types.StringValue(respDetails["host"].(string)),
-			Port:             types.Int64Value(int64(respDetails["port"].(float64))),
-			Database:         types.StringValue(respDetails["db"].(string)),
-			User:             types.StringValue(respDetails["user"].(string)),
-			Password:         types.StringValue(respDetails["password"].(string)),
-			SchemaFilter:     types.StringValue(respDetails["schema-filter"].(string)),
-			SSL:              types.BoolValue(respDetails["ssl"].(bool)),
-			SSLMode:          types.StringValue(respDetails["ssl-mode"].(string)),
-			SSLUseClientMode: types.BoolValue(respDetails["ssl-use-client-mode"].(bool)),
-		})
+		t := TransformPostgresDetails(PostgresqlDetailsVerifyType(respDetails))
 
 		// This test is necessary because the password is not returned in the response
-		if postgresqlDetails.Password.ValueString() != respDetails["password"].(string) {
-			t["password"] = postgresqlDetails.Password
+		if pwd, ok := respDetails["password"].(string); ok {
+			if postgresqlDetails.Password.ValueString() != pwd {
+				t["password"] = postgresqlDetails.Password
+			}
 		}
 
 		details, objectDiags := types.ObjectValue(PostgresqlDetailsObjectType.AttrTypes, t)
@@ -213,19 +206,7 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 
 	switch database.Engine.ValueString() {
 	case "postgres":
-		attrMap := database.PostgresqlDetails.Attributes()
-
-		details = map[string]interface{}{
-			"host":                attrMap["host"].(types.String).ValueString(),
-			"port":                attrMap["port"].(types.Int64).ValueInt64(),
-			"db":                  attrMap["database"].(types.String).ValueString(),
-			"user":                attrMap["user"].(types.String).ValueString(),
-			"password":            attrMap["password"].(types.String).ValueString(),
-			"schema-filter":       attrMap["schema_filter"].(types.String).ValueString(),
-			"ssl":                 attrMap["ssl"].(types.Bool).ValueBool(),
-			"ssl-mode":            attrMap["ssl_mode"].(types.String).ValueString(),
-			"ssl-use-client-mode": attrMap["ssl_use_client_mode"].(types.Bool).ValueBool(),
-		}
+		details = detailsPostgresAttribute(database.PostgresqlDetails.Attributes())
 
 	default:
 		return Database{}, fmt.Errorf("unsupported database engine")
