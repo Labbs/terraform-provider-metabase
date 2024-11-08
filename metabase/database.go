@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -215,8 +214,6 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 	switch database.Engine.ValueString() {
 	case "postgres":
 		attrMap := database.PostgresqlDetails.Attributes()
-
-		log.Println(attrMap["password"].(types.String).ValueString())
 
 		details = map[string]interface{}{
 			"host":                attrMap["host"].(types.String).ValueString(),
