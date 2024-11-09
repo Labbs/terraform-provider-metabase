@@ -104,7 +104,11 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		}
 
 		if createDatabase.StatusCode != 200 {
-			return Database{}, fmt.Errorf("failed to create database: %s", databaseResponse["message"].(string))
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to create database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to create database")
+			}
 		}
 
 		if id, ok := databaseResponse["id"].(float64); ok {
@@ -133,7 +137,11 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		}
 
 		if createDatabase.StatusCode != 200 {
-			return Database{}, fmt.Errorf("failed to create database: %s", databaseResponse["message"].(string))
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to create database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to create database")
+			}
 		}
 
 		if id, ok := databaseResponse["id"].(float64); ok {
@@ -169,7 +177,11 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 		}
 
 		if resp.StatusCode() != 200 {
-			return Database{}, fmt.Errorf("failed to get database: %s", databaseResponse["message"].(string))
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to get database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to get database")
+			}
 		}
 	case "v0.51":
 		database, err := client.V0_51.Client.GetDatabaseId(ctx, int(state.ID.ValueInt64()), nil)
@@ -188,7 +200,11 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 		}
 
 		if resp.StatusCode() != 200 {
-			return Database{}, fmt.Errorf("failed to get database: %s", databaseResponse["message"].(string))
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to get database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to get database")
+			}
 		}
 	default:
 		return Database{}, fmt.Errorf("unsupported client version")
@@ -299,7 +315,11 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		}
 
 		if resp.StatusCode() != 200 {
-			return Database{}, fmt.Errorf("failed to update database: %s", databaseResponse["message"].(string))
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to update database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to update database")
+			}
 		}
 
 		return database, nil
@@ -325,7 +345,11 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		}
 
 		if resp.StatusCode() != 200 {
-			return Database{}, fmt.Errorf("failed to update database: %s", databaseResponse["message"].(string))
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to update database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to update database")
+			}
 		}
 
 		return database, nil
