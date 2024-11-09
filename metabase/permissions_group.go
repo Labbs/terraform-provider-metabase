@@ -36,6 +36,10 @@ func CreatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 			return PermissionsGroup{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error creating permissions group")
+		}
+
 		return permissionsGroupResponse, nil
 	case "v0.51":
 		createdPermissionsGroup, err := client.V0_51.Client.PostPermissionsGroup(ctx, metabase_v0_51.PostPermissionsGroupJSONRequestBody{
@@ -54,6 +58,10 @@ func CreatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 		err = json.Unmarshal(resp.Body, &permissionsGroupResponse)
 		if err != nil {
 			return PermissionsGroup{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error creating permissions group")
 		}
 
 		return permissionsGroupResponse, nil
@@ -82,6 +90,10 @@ func GetPermissionsGroup(ctx context.Context, client *Client, permissionsGroupID
 			return PermissionsGroup{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error getting permissions group")
+		}
+
 		return permissionsGroupResponse, nil
 	case "v0.51":
 		permissionsGroup, err := client.V0_51.Client.GetPermissionsGroupId(ctx, permissionsGroupID)
@@ -98,6 +110,10 @@ func GetPermissionsGroup(ctx context.Context, client *Client, permissionsGroupID
 		err = json.Unmarshal(resp.Body, &permissionsGroupResponse)
 		if err != nil {
 			return PermissionsGroup{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error getting permissions group")
 		}
 
 		return permissionsGroupResponse, nil
@@ -128,6 +144,10 @@ func UpdatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 			return PermissionsGroup{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error updating permissions group")
+		}
+
 		return permissionsGroupResponse, nil
 	case "v0.51":
 		updatedPermissionsGroup, err := client.V0_51.Client.PutPermissionsGroupGroupId(ctx, permissionsGroup.ID, metabase_v0_51.PutPermissionsGroupGroupIdJSONRequestBody{
@@ -146,6 +166,10 @@ func UpdatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 		err = json.Unmarshal(resp.Body, &permissionsGroupResponse)
 		if err != nil {
 			return PermissionsGroup{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error updating permissions group")
 		}
 
 		return permissionsGroupResponse, nil
