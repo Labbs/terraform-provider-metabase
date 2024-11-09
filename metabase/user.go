@@ -39,6 +39,11 @@ func CreateUser(ctx context.Context, client *Client, user User) (User, error) {
 		if err != nil {
 			return User{}, err
 		}
+
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error creating user")
+		}
+
 		return userResponse, nil
 	case "v0.51":
 		createdUser, err := client.V0_51.Client.PostUser(ctx, metabase_v0_51.PostUserJSONRequestBody{
@@ -61,7 +66,9 @@ func CreateUser(ctx context.Context, client *Client, user User) (User, error) {
 			return User{}, err
 		}
 
-		fmt.Println(userResponse)
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error creating user")
+		}
 
 		return userResponse, nil
 	default:
@@ -89,6 +96,10 @@ func GetUser(ctx context.Context, client *Client, id int) (User, error) {
 			return User{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error getting user")
+		}
+
 		return userResponse, nil
 	case "v0.51":
 		user, err := client.V0_51.Client.GetUserId(ctx, id)
@@ -105,6 +116,10 @@ func GetUser(ctx context.Context, client *Client, id int) (User, error) {
 		err = json.Unmarshal(resp.Body, &userResponse)
 		if err != nil {
 			return User{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error getting user")
 		}
 
 		return userResponse, nil
@@ -137,6 +152,10 @@ func UpdateUser(ctx context.Context, client *Client, user User) (User, error) {
 			return User{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error updating user")
+		}
+
 		return userResponse, nil
 	case "v0.51":
 		updatedUser, err := client.V0_51.Client.PutUserId(ctx, user.ID, metabase_v0_51.PutUserIdJSONRequestBody{
@@ -157,6 +176,10 @@ func UpdateUser(ctx context.Context, client *Client, user User) (User, error) {
 		err = json.Unmarshal(resp.Body, &userResponse)
 		if err != nil {
 			return User{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error updating user")
 		}
 
 		return userResponse, nil
