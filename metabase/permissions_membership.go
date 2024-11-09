@@ -52,6 +52,10 @@ func CreatePermissionsMembership(ctx context.Context, client *Client, permission
 			return PermissionsMembership{}, err
 		}
 
+		if createdPermissionsMembership.StatusCode != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error creating permissions membership")
+		}
+
 		for _, membership := range permissionsGroupMemebershipResponse {
 			if membership.UserID == permissionsMembership.UserID {
 
@@ -80,6 +84,10 @@ func CreatePermissionsMembership(ctx context.Context, client *Client, permission
 		err = json.NewDecoder(createdPermissionsMembership.Body).Decode(&permissionsGroupMemebershipResponse)
 		if err != nil {
 			return PermissionsMembership{}, err
+		}
+
+		if createdPermissionsMembership.StatusCode != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error creating permissions membership")
 		}
 
 		for _, membership := range permissionsGroupMemebershipResponse {
@@ -126,6 +134,10 @@ func UpdatePermissionsMembership(ctx context.Context, client *Client, permission
 			return PermissionsMembership{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error updating permissions membership")
+		}
+
 		return permissionsMembershipResponse, nil
 	case "v0.51":
 		updatedPermissionsMembership, err := client.V0_51.Client.PutPermissionsMembershipId(ctx, permissionsMembership.ID, metabase_v0_51.PutPermissionsMembershipIdJSONRequestBody{
@@ -148,6 +160,10 @@ func UpdatePermissionsMembership(ctx context.Context, client *Client, permission
 		err = json.Unmarshal(resp.Body, &permissionsMembershipResponse)
 		if err != nil {
 			return PermissionsMembership{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error updating permissions membership")
 		}
 
 		return permissionsMembershipResponse, nil
@@ -194,6 +210,10 @@ func GetPermissionsMembership(ctx context.Context, client *Client, membershipID,
 			return PermissionsMembership{}, err
 		}
 
+		if permissionsMembership.StatusCode != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error getting permissions membership")
+		}
+
 		for _, membership := range permissionsMemebershipResponse[strconv.Itoa(userID)] {
 			if membership.MembershipID == membershipID {
 				return PermissionsMembership{
@@ -217,6 +237,10 @@ func GetPermissionsMembership(ctx context.Context, client *Client, membershipID,
 		err = json.NewDecoder(permissionsMembership.Body).Decode(&permissionsMemebershipResponse)
 		if err != nil {
 			return PermissionsMembership{}, err
+		}
+
+		if permissionsMembership.StatusCode != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error getting permissions membership")
 		}
 
 		for _, membership := range permissionsMemebershipResponse[strconv.Itoa(userID)] {
