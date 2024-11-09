@@ -96,6 +96,33 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 					},
 				},
 			},
+			"mysql_details": schema.SingleNestedAttribute{
+				MarkdownDescription: "Mysql configuration details",
+				Optional:            true,
+				Attributes: map[string]schema.Attribute{
+					"host": schema.StringAttribute{
+						MarkdownDescription: "Database host",
+						Required:            true,
+					},
+					"port": schema.Int64Attribute{
+						MarkdownDescription: "Database port, default 3306",
+						Optional:            true,
+					},
+					"database": schema.StringAttribute{
+						MarkdownDescription: "Database name",
+						Required:            true,
+					},
+					"user": schema.StringAttribute{
+						MarkdownDescription: "Database user",
+						Required:            true,
+					},
+					"password": schema.StringAttribute{
+						MarkdownDescription: "Database password",
+						Required:            true,
+						Sensitive:           true,
+					},
+				},
+			},
 		},
 	}
 }
@@ -113,6 +140,11 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 
 	switch plan.Engine.ValueString() {
 	case "postgres":
+		if plan.PostgresqlDetails.IsNull() {
+			resp.Diagnostics.AddError("missing postgres details", "postgres details are required")
+			return
+		}
+
 		var postgresDetails metabase.PostgresqlDetails
 		diag := plan.PostgresqlDetails.As(ctx, &postgresDetails, basetypes.ObjectAsOptions{})
 		resp.Diagnostics.Append(diag...)
@@ -128,6 +160,27 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 		}
 
 		db.PostgresqlDetails = details
+	case "mysql":
+		if plan.MysqlDetails.IsNull() {
+			resp.Diagnostics.AddError("missing mysql details", "mysql details are required")
+			return
+		}
+
+		var mysqlDetails metabase.MysqlDetails
+		diag := plan.MysqlDetails.As(ctx, &mysqlDetails, basetypes.ObjectAsOptions{})
+		resp.Diagnostics.Append(diag...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		details, objectDiags := types.ObjectValue(metabase.MysqlDetailsObjectType.AttrTypes, metabase.TransformMysqlDetails(mysqlDetails))
+
+		resp.Diagnostics.Append(objectDiags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		db.MysqlDetails = details
 	default:
 		resp.Diagnostics.AddError("unsupported database engine", "this database engine is not supported")
 		return
@@ -206,6 +259,26 @@ func (r *DatabaseResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 
 		db.PostgresqlDetails = details
+	case "mysql":
+		var mysqlDetails metabase.MysqlDetails
+		diag := plan.MysqlDetails.As(ctx, &mysqlDetails, basetypes.ObjectAsOptions{})
+		resp.Diagnostics.Append(diag...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		if mysqlDetails.Port.ValueInt64() == 0 {
+			mysqlDetails.Port = types.Int64Value(3306)
+		}
+
+		details, objectDiags := types.ObjectValue(metabase.MysqlDetailsObjectType.AttrTypes, metabase.TransformMysqlDetails(mysqlDetails))
+
+		resp.Diagnostics.Append(objectDiags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		db.MysqlDetails = details
 	default:
 		resp.Diagnostics.AddError("unsupported database engine", "this database engine is not supported")
 		return
