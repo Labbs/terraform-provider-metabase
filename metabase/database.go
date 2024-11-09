@@ -20,6 +20,7 @@ type Database struct {
 	AutoRunQueries    types.Bool             `json:"auto_run_queries" tfsdk:"auto_run_queries"`
 	IsOnDemand        types.Bool             `json:"is_on_demand" tfsdk:"is_on_demand"`
 	PostgresqlDetails types.Object           `json:"-" tfsdk:"postgresql_details"`
+	MysqlDetails      types.Object           `json:"-" tfsdk:"mysql_details"`
 	Details           map[string]interface{} `json:"details" tfsdk:"-"`
 }
 
@@ -33,6 +34,14 @@ type PostgresqlDetails struct {
 	SSL              types.Bool   `json:"ssl" tfsdk:"ssl"`
 	SSLMode          types.String `json:"ssl_mode" tfsdk:"ssl_mode"`
 	SSLUseClientMode types.Bool   `json:"ssl_use_client_mode" tfsdk:"ssl_use_client_mode"`
+}
+
+type MysqlDetails struct {
+	Host     types.String `json:"host" tfsdk:"host"`
+	Port     types.Int64  `json:"port" tfsdk:"port"`
+	Database types.String `json:"database" tfsdk:"database"`
+	User     types.String `json:"user" tfsdk:"user"`
+	Password types.String `json:"password" tfsdk:"password"`
 }
 
 var PostgresqlDetailsObjectType = types.ObjectType{
@@ -49,6 +58,16 @@ var PostgresqlDetailsObjectType = types.ObjectType{
 	},
 }
 
+var MysqlDetailsObjectType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"host":     types.StringType,
+		"port":     types.Int64Type,
+		"database": types.StringType,
+		"user":     types.StringType,
+		"password": types.StringType,
+	},
+}
+
 // CreateDatabase creates a database based on the API version.
 func CreateDatabase(ctx context.Context, client *Client, database Database) (Database, error) {
 	var isOnDemand interface{} = database.IsOnDemand
@@ -59,6 +78,8 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 	switch database.Engine.ValueString() {
 	case "postgres":
 		details = detailsPostgresAttribute(database.PostgresqlDetails.Attributes())
+	case "mysql":
+		details = detailsMysqlAttribute(database.MysqlDetails.Attributes())
 	default:
 		return Database{}, fmt.Errorf("unsupported database engine")
 	}
@@ -80,6 +101,14 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		err = json.NewDecoder(createDatabase.Body).Decode(&databaseResponse)
 		if err != nil {
 			return Database{}, err
+		}
+
+		if createDatabase.StatusCode != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to create database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to create database")
+			}
 		}
 
 		if id, ok := databaseResponse["id"].(float64); ok {
@@ -105,6 +134,14 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		err = json.NewDecoder(createDatabase.Body).Decode(&databaseResponse)
 		if err != nil {
 			return Database{}, err
+		}
+
+		if createDatabase.StatusCode != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to create database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to create database")
+			}
 		}
 
 		if id, ok := databaseResponse["id"].(float64); ok {
@@ -133,11 +170,19 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 		if err != nil {
 			return Database{}, err
 		}
+
 		err = json.Unmarshal(resp.Body, &databaseResponse)
 		if err != nil {
 			return Database{}, err
 		}
 
+		if resp.StatusCode() != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to get database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to get database")
+			}
+		}
 	case "v0.51":
 		database, err := client.V0_51.Client.GetDatabaseId(ctx, int(state.ID.ValueInt64()), nil)
 		if err != nil {
@@ -149,23 +194,31 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 			return Database{}, err
 		}
 
-		var databaseResponse Database
 		err = json.Unmarshal(resp.Body, &databaseResponse)
 		if err != nil {
 			return Database{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to get database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to get database")
+			}
 		}
 	default:
 		return Database{}, fmt.Errorf("unsupported client version")
 	}
 
+	var respDetails map[string]interface{}
+	if d, ok := databaseResponse["details"].(map[string]interface{}); ok {
+		respDetails = d
+	} else {
+		return Database{}, fmt.Errorf("failed to convert database details")
+	}
+
 	switch state.Engine.ValueString() {
 	case "postgres":
-		var respDetails map[string]interface{}
-		if d, ok := databaseResponse["details"].(map[string]interface{}); ok {
-			respDetails = d
-		} else {
-			return Database{}, fmt.Errorf("failed to convert database details")
-		}
 		var postgresqlDetails PostgresqlDetails
 		diag := state.PostgresqlDetails.As(ctx, &postgresqlDetails, basetypes.ObjectAsOptions{})
 		if diag.HasError() {
@@ -190,6 +243,31 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 		state.PostgresqlDetails = details
 
 		return state, nil
+	case "mysql":
+		var mysqlDetails MysqlDetails
+		diag := state.MysqlDetails.As(ctx, &mysqlDetails, basetypes.ObjectAsOptions{})
+		if diag.HasError() {
+			return Database{}, fmt.Errorf("failed to convert MysqlDetails")
+		}
+
+		t := TransformMysqlDetails(MysqlDetailsVerifyType(respDetails))
+
+		// This test is necessary because the password is not returned in the response
+		if pwd, ok := respDetails["password"].(string); ok {
+			if mysqlDetails.Password.ValueString() != pwd {
+				t["password"] = mysqlDetails.Password
+			}
+		}
+
+		details, objectDiags := types.ObjectValue(MysqlDetailsObjectType.AttrTypes, t)
+
+		if objectDiags.HasError() {
+			return Database{}, fmt.Errorf("failed to convert MysqlDetails")
+		}
+
+		state.MysqlDetails = details
+
+		return state, nil
 	default:
 		return Database{}, fmt.Errorf("unsupported database engine")
 	}
@@ -199,6 +277,7 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 func UpdateDatabase(ctx context.Context, client *Client, database Database) (Database, error) {
 	var engine interface{} = database.Engine.ValueString()
 	var details map[string]interface{}
+	var databaseResponse map[string]interface{}
 
 	var name string = database.Name.ValueString()
 	var autoRunQueries bool = database.AutoRunQueries.ValueBool()
@@ -207,7 +286,8 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 	switch database.Engine.ValueString() {
 	case "postgres":
 		details = detailsPostgresAttribute(database.PostgresqlDetails.Attributes())
-
+	case "mysql":
+		details = detailsMysqlAttribute(database.MysqlDetails.Attributes())
 	default:
 		return Database{}, fmt.Errorf("unsupported database engine")
 	}
@@ -224,9 +304,22 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 			return Database{}, err
 		}
 
-		_, err = metabase_v0_50.ParsePutDatabaseIdResponse(updatedDatabase)
+		resp, err := metabase_v0_50.ParsePutDatabaseIdResponse(updatedDatabase)
 		if err != nil {
 			return Database{}, err
+		}
+
+		err = json.Unmarshal(resp.Body, &databaseResponse)
+		if err != nil {
+			return Database{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to update database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to update database")
+			}
 		}
 
 		return database, nil
@@ -241,9 +334,22 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 			return Database{}, err
 		}
 
-		_, err = metabase_v0_51.ParsePutDatabaseIdResponse(updatedDatabase)
+		resp, err := metabase_v0_51.ParsePutDatabaseIdResponse(updatedDatabase)
 		if err != nil {
 			return Database{}, err
+		}
+
+		err = json.Unmarshal(resp.Body, &databaseResponse)
+		if err != nil {
+			return Database{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to update database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to update database")
+			}
 		}
 
 		return database, nil

@@ -24,11 +24,27 @@ Metabase Database
 
 - `auto_run_queries` (Boolean) Auto run queries
 - `is_on_demand` (Boolean) Is on demand
+- `mysql_details` (Attributes) Mysql configuration details (see [below for nested schema](#nestedatt--mysql_details))
 - `postgresql_details` (Attributes) Postgresql configuration details (see [below for nested schema](#nestedatt--postgresql_details))
 
 ### Read-Only
 
 - `id` (Number) Database Id
+
+<a id="nestedatt--mysql_details"></a>
+### Nested Schema for `mysql_details`
+
+Required:
+
+- `database` (String) Database name
+- `host` (String) Database host
+- `password` (String, Sensitive) Database password
+- `user` (String) Database user
+
+Optional:
+
+- `port` (Number) Database port, default 3306
+
 
 <a id="nestedatt--postgresql_details"></a>
 ### Nested Schema for `postgresql_details`
