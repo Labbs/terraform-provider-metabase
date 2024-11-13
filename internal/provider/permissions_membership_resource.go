@@ -166,26 +166,7 @@ func (r *PermissionsMembershipResource) Metadata(ctx context.Context, req resour
 }
 
 func (r *PermissionsMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	var state struct {
-		ID             types.Int64 `tfsdk:"id"`
-		GroupID        types.Int64 `tfsdk:"group_id"`
-		UserID         types.Int64 `tfsdk:"user_id"`
-		IsGroupManager types.Bool  `tfsdk:"is_group_manager"`
-	}
-
-	diags := resp.State.Get(ctx, &state)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	membership, err := metabase.GetPermissionsMembership(ctx, r.client, int(state.ID.ValueInt64()), int(state.GroupID.ValueInt64()), int(state.UserID.ValueInt64()))
-	if err != nil {
-		resp.Diagnostics.AddError("failed to get membership", err.Error())
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &membership)...)
+	customImport(ctx, req, resp)
 }
 
 func (r *PermissionsMembershipResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
