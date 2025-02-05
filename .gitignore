@@ -38,3 +38,5 @@ website/vendor
 
 # Ignore the provider binary. Used for local testing.
 terraform-provider-metabase 
+
+tmp/

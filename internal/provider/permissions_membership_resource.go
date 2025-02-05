@@ -157,8 +157,6 @@ func (r *PermissionsMembershipResource) Delete(ctx context.Context, req resource
 		resp.Diagnostics.AddError("failed to delete membership", err.Error())
 		return
 	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, nil)...)
 }
 
 func (r *PermissionsMembershipResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
