@@ -13,6 +13,7 @@ The documentation is available on the [Terraform Registry](https://registry.terr
 |-----------------:|:---------:|
 | 0.50             | ✅        |
 | 0.51             | ✅        |
+| 0.55             | ✅        |
 
 A small is present in this repository to add another version of Metabase to the compatibility list.
 If the version is not supported, the provider will return an error when trying to connect to the Metabase API.

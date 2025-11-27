@@ -7,6 +7,7 @@ import (
 
 	metabase_v0_50 "github.com/labbs/terraform-provider-metabase/metabase/v0_50"
 	metabase_v0_51 "github.com/labbs/terraform-provider-metabase/metabase/v0_51"
+	metabase_v0_55 "github.com/labbs/terraform-provider-metabase/metabase/v0_55"
 )
 
 type PermissionsGroup struct {
@@ -65,6 +66,30 @@ func CreatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 		}
 
 		return permissionsGroupResponse, nil
+	case "v0.55":
+		createdPermissionsGroup, err := client.V0_55.Client.PostApiPermissionsGroup(ctx, metabase_v0_55.PostApiPermissionsGroupJSONRequestBody{
+			Name: permissionsGroup.Name,
+		})
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		resp, err := metabase_v0_55.ParsePostApiPermissionsGroupResponse(createdPermissionsGroup)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		var permissionsGroupResponse PermissionsGroup
+		err = json.Unmarshal(resp.Body, &permissionsGroupResponse)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error creating permissions group")
+		}
+
+		return permissionsGroupResponse, nil
 	default:
 		return PermissionsGroup{}, fmt.Errorf("unsupported client version")
 	}
@@ -102,6 +127,28 @@ func GetPermissionsGroup(ctx context.Context, client *Client, permissionsGroupID
 		}
 
 		resp, err := metabase_v0_51.ParseGetPermissionsGroupResponse(permissionsGroup)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		var permissionsGroupResponse PermissionsGroup
+		err = json.Unmarshal(resp.Body, &permissionsGroupResponse)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error getting permissions group")
+		}
+
+		return permissionsGroupResponse, nil
+	case "v0.55":
+		permissionsGroup, err := client.V0_55.Client.GetApiPermissionsGroupId(ctx, permissionsGroupID)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		resp, err := metabase_v0_55.ParseGetApiPermissionsGroupIdResponse(permissionsGroup)
 		if err != nil {
 			return PermissionsGroup{}, err
 		}
@@ -173,6 +220,30 @@ func UpdatePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 		}
 
 		return permissionsGroupResponse, nil
+	case "v0.55":
+		updatedPermissionsGroup, err := client.V0_55.Client.PutApiPermissionsGroupGroupId(ctx, permissionsGroup.ID, metabase_v0_55.PutApiPermissionsGroupGroupIdJSONRequestBody{
+			Name: permissionsGroup.Name,
+		})
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		resp, err := metabase_v0_55.ParsePutApiPermissionsGroupGroupIdResponse(updatedPermissionsGroup)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		var permissionsGroupResponse PermissionsGroup
+		err = json.Unmarshal(resp.Body, &permissionsGroupResponse)
+		if err != nil {
+			return PermissionsGroup{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsGroup{}, fmt.Errorf("error updating permissions group")
+		}
+
+		return permissionsGroupResponse, nil
 	default:
 		return PermissionsGroup{}, fmt.Errorf("unsupported client version")
 	}
@@ -190,6 +261,13 @@ func DeletePermissionsGroup(ctx context.Context, client *Client, permissionsGrou
 		return nil
 	case "v0.51":
 		_, err := client.V0_51.Client.DeletePermissionsGroupGroupId(ctx, permissionsGroupID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	case "v0.55":
+		_, err := client.V0_55.Client.DeleteApiPermissionsGroupGroupId(ctx, permissionsGroupID)
 		if err != nil {
 			return err
 		}
