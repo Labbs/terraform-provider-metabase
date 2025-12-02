@@ -184,7 +184,7 @@ func NewAutoVersionedClient(config ClientConfig) (*Client, error) {
 		// v0.55 OpenAPI spec includes /api in paths, so strip it from BaseURL
 		v055Config := config
 		v055Config.BaseURL = strings.TrimSuffix(config.BaseURL, "/api")
-		
+
 		versionedClient, err := NewVersionedClient[
 			metabase_v0_55.Client,
 			metabase_v0_55.ClientOption,
