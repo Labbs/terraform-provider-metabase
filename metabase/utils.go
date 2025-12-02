@@ -27,8 +27,8 @@ func TransformPostgresDetails(details PostgresqlDetails) map[string]attr.Value {
 		result["schema_filter"] = types.StringValue(details.SchemaFilter.ValueString())
 	}
 
-	if details.SSL.IsNull() || !details.SSL.ValueBool() {
-		result["ssl"] = types.BoolNull()
+	if details.SSL.IsNull() {
+		result["ssl"] = types.BoolValue(false)
 	} else {
 		result["ssl"] = types.BoolValue(details.SSL.ValueBool())
 	}

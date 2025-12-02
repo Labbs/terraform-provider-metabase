@@ -1,0 +1,6 @@
+package: schema
+generate:
+- types
+- client
+- models
+output: ../metabase/v0_55/client.gen.go

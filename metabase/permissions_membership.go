@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 
 	metabase_v0_50 "github.com/labbs/terraform-provider-metabase/metabase/v0_50"
 	metabase_v0_51 "github.com/labbs/terraform-provider-metabase/metabase/v0_51"
+	metabase_v0_55 "github.com/labbs/terraform-provider-metabase/metabase/v0_55"
 )
 
 type PermissionsMembership struct {
@@ -103,6 +105,48 @@ func CreatePermissionsMembership(ctx context.Context, client *Client, permission
 		}
 
 		return PermissionsMembership{}, fmt.Errorf("could not find created membership list after creation")
+	case "v0.55":
+		createdPermissionsMembership, err := client.V0_55.Client.PostApiPermissionsMembership(ctx, metabase_v0_55.PostApiPermissionsMembershipJSONRequestBody{
+			GroupId:        permissionsMembership.GroupID,
+			UserId:         permissionsMembership.UserID,
+			IsGroupManager: &permissionsMembership.IsGroupManager,
+		})
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+
+		// Don't use Parse function here as the OpenAPI spec incorrectly defines
+		// the response as an object when it's actually an array
+		bodyBytes, err := io.ReadAll(createdPermissionsMembership.Body)
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+		defer createdPermissionsMembership.Body.Close()
+
+		if createdPermissionsMembership.StatusCode != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error creating permissions membership (status: %d, body: %s)", createdPermissionsMembership.StatusCode, string(bodyBytes))
+		}
+
+		var permissionsGroupMemebershipResponse []PermissionsGroupMembership
+
+		err = json.Unmarshal(bodyBytes, &permissionsGroupMemebershipResponse)
+		if err != nil {
+			return PermissionsMembership{}, fmt.Errorf("failed to unmarshal response (body: %s): %w", string(bodyBytes), err)
+		}
+
+		for _, membership := range permissionsGroupMemebershipResponse {
+			if membership.UserID == permissionsMembership.UserID {
+
+				return PermissionsMembership{
+					ID:             membership.MembershipID,
+					GroupID:        permissionsMembership.GroupID,
+					UserID:         permissionsMembership.UserID,
+					IsGroupManager: permissionsMembership.IsGroupManager,
+				}, nil
+			}
+		}
+
+		return PermissionsMembership{}, fmt.Errorf("could not find created membership list after creation")
 	default:
 		return PermissionsMembership{}, fmt.Errorf("unsupported API version")
 	}
@@ -167,6 +211,34 @@ func UpdatePermissionsMembership(ctx context.Context, client *Client, permission
 		}
 
 		return permissionsMembershipResponse, nil
+	case "v0.55":
+		updatedPermissionsMembership, err := client.V0_55.Client.PutApiPermissionsMembershipId(ctx, permissionsMembership.ID, metabase_v0_55.PutApiPermissionsMembershipIdJSONRequestBody{
+			IsGroupManager: permissionsMembership.IsGroupManager,
+		})
+		if err != nil && updatedPermissionsMembership.StatusCode != 402 {
+			return PermissionsMembership{}, err
+		}
+
+		if updatedPermissionsMembership.StatusCode == 402 {
+			return PermissionsMembership{}, fmt.Errorf("please enable the Metabase Pro license to use this feature")
+		}
+
+		resp, err := metabase_v0_55.ParsePutApiPermissionsMembershipIdResponse(updatedPermissionsMembership)
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+
+		var permissionsMembershipResponse PermissionsMembership
+		err = json.Unmarshal(resp.Body, &permissionsMembershipResponse)
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error updating permissions membership")
+		}
+
+		return permissionsMembershipResponse, nil
 	default:
 		return PermissionsMembership{}, fmt.Errorf("unsupported API version")
 	}
@@ -184,6 +256,13 @@ func DeletePermissionsMembership(ctx context.Context, client *Client, permission
 		return nil
 	case "v0.51":
 		_, err := client.V0_51.Client.DeletePermissionsMembershipId(ctx, permissionsMembershipID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	case "v0.55":
+		_, err := client.V0_55.Client.DeleteApiPermissionsMembershipId(ctx, permissionsMembershipID)
 		if err != nil {
 			return err
 		}
@@ -240,6 +319,40 @@ func GetPermissionsMembership(ctx context.Context, client *Client, membershipID,
 		}
 
 		if permissionsMembership.StatusCode != 200 {
+			return PermissionsMembership{}, fmt.Errorf("error getting permissions membership")
+		}
+
+		for _, membership := range permissionsMemebershipResponse[strconv.Itoa(userID)] {
+			if membership.MembershipID == membershipID {
+				return PermissionsMembership{
+					ID:             membership.MembershipID,
+					GroupID:        membership.GroupID,
+					UserID:         membership.UserID,
+					IsGroupManager: membership.IsGroupManager,
+				}, nil
+			}
+		}
+
+		return PermissionsMembership{}, fmt.Errorf("could not find membership with ID %d", membershipID)
+	case "v0.55":
+		permissionsMembership, err := client.V0_55.Client.GetApiPermissionsMembership(ctx)
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+
+		resp, err := metabase_v0_55.ParseGetApiPermissionsMembershipResponse(permissionsMembership)
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+
+		var permissionsMemebershipResponse map[string][]PermissionsMembershipResponse
+
+		err = json.Unmarshal(resp.Body, &permissionsMemebershipResponse)
+		if err != nil {
+			return PermissionsMembership{}, err
+		}
+
+		if resp.StatusCode() != 200 {
 			return PermissionsMembership{}, fmt.Errorf("error getting permissions membership")
 		}
 

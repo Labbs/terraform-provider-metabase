@@ -84,6 +84,7 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 					"ssl": schema.BoolAttribute{
 						MarkdownDescription: "Database ssl",
 						Optional:            true,
+						Computed:            true,
 					},
 					"ssl_mode": schema.StringAttribute{
 						MarkdownDescription: "Database ssl mode",

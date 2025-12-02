@@ -11,6 +11,7 @@ import (
 
 	metabase_v0_50 "github.com/labbs/terraform-provider-metabase/metabase/v0_50"
 	metabase_v0_51 "github.com/labbs/terraform-provider-metabase/metabase/v0_51"
+	metabase_v0_55 "github.com/labbs/terraform-provider-metabase/metabase/v0_55"
 )
 
 type Database struct {
@@ -151,6 +152,40 @@ func CreateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		} else {
 			return Database{}, fmt.Errorf("failed to convert database id")
 		}
+	case "v0.55":
+		isOnDemandBool := database.IsOnDemand.ValueBool()
+		createDatabase, err := client.V0_55.Client.PostApiDatabase(ctx, metabase_v0_55.PostApiDatabaseJSONRequestBody{
+			Name:           database.Name.ValueString(),
+			Engine:         database.Engine.ValueString(),
+			AutoRunQueries: &autoRunQueries,
+			IsOnDemand:     &isOnDemandBool,
+			Details:        details,
+		})
+		if err != nil {
+			return Database{}, err
+		}
+
+		var databaseResponse map[string]interface{}
+		err = json.NewDecoder(createDatabase.Body).Decode(&databaseResponse)
+		if err != nil {
+			return Database{}, err
+		}
+
+		if createDatabase.StatusCode != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to create database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to create database")
+			}
+		}
+
+		if id, ok := databaseResponse["id"].(float64); ok {
+			return Database{
+				ID: types.Int64Value(int64(id)),
+			}, nil
+		} else {
+			return Database{}, fmt.Errorf("failed to convert database id")
+		}
 	default:
 		return Database{}, fmt.Errorf("unsupported client version")
 	}
@@ -190,6 +225,29 @@ func GetDatabase(ctx context.Context, client *Client, state Database) (Database,
 		}
 
 		resp, err := metabase_v0_51.ParseGetDatabaseIdResponse(database)
+		if err != nil {
+			return Database{}, err
+		}
+
+		err = json.Unmarshal(resp.Body, &databaseResponse)
+		if err != nil {
+			return Database{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to get database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to get database")
+			}
+		}
+	case "v0.55":
+		database, err := client.V0_55.Client.GetApiDatabaseId(ctx, int(state.ID.ValueInt64()), nil)
+		if err != nil {
+			return Database{}, err
+		}
+
+		resp, err := metabase_v0_55.ParseGetApiDatabaseIdResponse(database)
 		if err != nil {
 			return Database{}, err
 		}
@@ -353,6 +411,37 @@ func UpdateDatabase(ctx context.Context, client *Client, database Database) (Dat
 		}
 
 		return database, nil
+	case "v0.55":
+		engineStr := database.Engine.ValueString()
+		updatedDatabase, err := client.V0_55.Client.PutApiDatabaseId(ctx, id, metabase_v0_55.PutApiDatabaseIdJSONRequestBody{
+			Name:           &name,
+			Engine:         &engineStr,
+			AutoRunQueries: &autoRunQueries,
+			Details:        &details,
+		})
+		if err != nil {
+			return Database{}, err
+		}
+
+		resp, err := metabase_v0_55.ParsePutApiDatabaseIdResponse(updatedDatabase)
+		if err != nil {
+			return Database{}, err
+		}
+
+		err = json.Unmarshal(resp.Body, &databaseResponse)
+		if err != nil {
+			return Database{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			if m, ok := databaseResponse["message"].(string); ok {
+				return Database{}, fmt.Errorf("failed to update database: %s", m)
+			} else {
+				return Database{}, fmt.Errorf("failed to update database")
+			}
+		}
+
+		return database, nil
 	default:
 		return Database{}, fmt.Errorf("unsupported client version")
 	}
@@ -370,6 +459,13 @@ func DeleteDatabase(ctx context.Context, client *Client, databaseID int) error {
 		return nil
 	case "v0.51":
 		_, err := client.V0_51.Client.DeleteDatabaseId(ctx, databaseID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	case "v0.55":
+		_, err := client.V0_55.Client.DeleteApiDatabaseId(ctx, databaseID)
 		if err != nil {
 			return err
 		}

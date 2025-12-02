@@ -46,6 +46,7 @@ func (r *PermissionsMembershipResource) Schema(ctx context.Context, req resource
 			"is_group_manager": schema.BoolAttribute{
 				MarkdownDescription: "Is Group Manager",
 				Optional:            true,
+				Computed:            true,
 			},
 		},
 	}
@@ -78,9 +79,7 @@ func (r *PermissionsMembershipResource) Create(ctx context.Context, req resource
 	}
 
 	plan.ID = types.Int64Value(int64(createMembership.ID))
-	if createMembership.IsGroupManager {
-		plan.IsGroupManager = types.BoolValue(true)
-	}
+	plan.IsGroupManager = types.BoolValue(createMembership.IsGroupManager)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }

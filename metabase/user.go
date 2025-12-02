@@ -7,6 +7,7 @@ import (
 
 	metabase_v0_50 "github.com/labbs/terraform-provider-metabase/metabase/v0_50"
 	metabase_v0_51 "github.com/labbs/terraform-provider-metabase/metabase/v0_51"
+	metabase_v0_55 "github.com/labbs/terraform-provider-metabase/metabase/v0_55"
 )
 
 type User struct {
@@ -71,6 +72,32 @@ func CreateUser(ctx context.Context, client *Client, user User) (User, error) {
 		}
 
 		return userResponse, nil
+	case "v0.55":
+		createdUser, err := client.V0_55.Client.PostApiUser(ctx, metabase_v0_55.PostApiUserJSONRequestBody{
+			Email:     user.Email,
+			FirstName: &user.FirstName,
+			LastName:  &user.LastName,
+		})
+		if err != nil {
+			return User{}, err
+		}
+
+		resp, err := metabase_v0_55.ParsePostApiUserResponse(createdUser)
+		if err != nil {
+			return User{}, err
+		}
+
+		var userResponse User
+		err = json.Unmarshal(resp.Body, &userResponse)
+		if err != nil {
+			return User{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error creating user")
+		}
+
+		return userResponse, nil
 	default:
 		return User{}, fmt.Errorf("unsupported client version")
 	}
@@ -108,6 +135,28 @@ func GetUser(ctx context.Context, client *Client, id int) (User, error) {
 		}
 
 		resp, err := metabase_v0_51.ParseGetUserIdResponse(user)
+		if err != nil {
+			return User{}, err
+		}
+
+		var userResponse User
+		err = json.Unmarshal(resp.Body, &userResponse)
+		if err != nil {
+			return User{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error getting user")
+		}
+
+		return userResponse, nil
+	case "v0.55":
+		user, err := client.V0_55.Client.GetApiUserId(ctx, id)
+		if err != nil {
+			return User{}, err
+		}
+
+		resp, err := metabase_v0_55.ParseGetApiUserIdResponse(user)
 		if err != nil {
 			return User{}, err
 		}
@@ -183,6 +232,32 @@ func UpdateUser(ctx context.Context, client *Client, user User) (User, error) {
 		}
 
 		return userResponse, nil
+	case "v0.55":
+		updatedUser, err := client.V0_55.Client.PutApiUserId(ctx, user.ID, metabase_v0_55.PutApiUserIdJSONRequestBody{
+			Email:     &user.Email,
+			FirstName: &user.FirstName,
+			LastName:  &user.LastName,
+		})
+		if err != nil {
+			return User{}, err
+		}
+
+		resp, err := metabase_v0_55.ParsePutApiUserIdResponse(updatedUser)
+		if err != nil {
+			return User{}, err
+		}
+
+		var userResponse User
+		err = json.Unmarshal(resp.Body, &userResponse)
+		if err != nil {
+			return User{}, err
+		}
+
+		if resp.StatusCode() != 200 {
+			return User{}, fmt.Errorf("error updating user")
+		}
+
+		return userResponse, nil
 	default:
 		return User{}, fmt.Errorf("unsupported client version")
 	}
@@ -200,6 +275,13 @@ func DeleteUser(ctx context.Context, client *Client, id int) error {
 		return nil
 	case "v0.51":
 		_, err := client.V0_51.Client.DeleteUserId(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	case "v0.55":
+		_, err := client.V0_55.Client.DeleteApiUserId(ctx, id)
 		if err != nil {
 			return err
 		}

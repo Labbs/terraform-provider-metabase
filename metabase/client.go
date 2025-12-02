@@ -9,6 +9,7 @@ import (
 
 	metabase_v0_50 "github.com/labbs/terraform-provider-metabase/metabase/v0_50"
 	metabase_v0_51 "github.com/labbs/terraform-provider-metabase/metabase/v0_51"
+	metabase_v0_55 "github.com/labbs/terraform-provider-metabase/metabase/v0_55"
 )
 
 // ClientConfig contains the common configuration for all versions.
@@ -35,6 +36,7 @@ type VersionedClient[T any, O any, R any] struct {
 type Client struct {
 	V0_50   *VersionedClient[metabase_v0_50.Client, metabase_v0_50.ClientOption, metabase_v0_50.RequestEditorFn]
 	V0_51   *VersionedClient[metabase_v0_51.Client, metabase_v0_51.ClientOption, metabase_v0_51.RequestEditorFn]
+	V0_55   *VersionedClient[metabase_v0_55.Client, metabase_v0_55.ClientOption, metabase_v0_55.RequestEditorFn]
 	Version string
 	Premium bool
 }
@@ -63,6 +65,12 @@ func NewVersionedClient[T any, O any, R any](
 		converted, ok := any(metabase_v0_51.RequestEditorFn(baseAuthFn)).(R)
 		if !ok {
 			return nil, fmt.Errorf("failed to convert to v0.51 RequestEditorFn")
+		}
+		typedAuthFn = converted
+	case metabase_v0_55.RequestEditorFn:
+		converted, ok := any(metabase_v0_55.RequestEditorFn(baseAuthFn)).(R)
+		if !ok {
+			return nil, fmt.Errorf("failed to convert to v0.55 RequestEditorFn")
 		}
 		typedAuthFn = converted
 	default:
@@ -172,6 +180,21 @@ func NewAutoVersionedClient(config ClientConfig) (*Client, error) {
 		}
 		client.V0_51 = versionedClient
 
+	case "v0.55":
+		// v0.55 OpenAPI spec includes /api in paths, so strip it from BaseURL
+		v055Config := config
+		v055Config.BaseURL = strings.TrimSuffix(config.BaseURL, "/api")
+
+		versionedClient, err := NewVersionedClient[
+			metabase_v0_55.Client,
+			metabase_v0_55.ClientOption,
+			metabase_v0_55.RequestEditorFn,
+		](v055Config, version, metabase_v0_55.NewClient, metabase_v0_55.WithRequestEditorFn)
+		if err != nil {
+			return nil, err
+		}
+		client.V0_55 = versionedClient
+
 	default:
 		return nil, fmt.Errorf("unsupported version: %s", version)
 	}
@@ -186,6 +209,8 @@ func (c *Client) GetClient() interface{} {
 		return c.V0_50.Client
 	case "v0.51":
 		return c.V0_51.Client
+	case "v0.55":
+		return c.V0_55.Client
 	default:
 		return nil
 	}
